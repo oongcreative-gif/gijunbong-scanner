@@ -3,7 +3,7 @@
 규칙
 1. 60일선이 120일선 아래로 내려간 첫 날 = 역배열 시작일 (1일째)
 2. 시작일부터 60일(달력일) 동안, 역배열이 유지되는 구간에서
-3. 그 봉이 양봉(종가 > 시가)이고, 종가가 역배열 시작일부터 그 전날까지 모든 봉(음봉 포함)의 종가보다 높으면 기준봉 (크기·거래량은 안 봄)
+3. 그 봉이 양봉(종가 > 시가)이고, 종가가 직전 60거래일(자기 포함) 모든 봉(음봉 포함)의 종가보다 높으면 기준봉 (크기·거래량은 안 봄)
 4. 한 역배열 구간에서는 처음 뜬 기준봉이 고정. 오늘 봉이 그 첫 기준봉이면 신호
 
 실행하면
@@ -41,6 +41,7 @@ UNIVERSE_CSV = os.path.join(ROOT, 'data', 'universe.csv')
 KST = ZoneInfo('Asia/Seoul')
 MA_SHORT, MA_LONG = 60, 120
 WINDOW_DAYS = 60          # 역배열 시작일(=1일째)부터 60일째까지 (달력일)
+HIGH_BARS = 60            # 기준봉 종가 비교 기간 (거래일 봉 수, 자기 포함)
 LOOKBACK_DAYS = 420       # 달력일 기준 조회 기간
 CHART_BARS = 170          # 사이트 차트에 쓸 봉 수
 MIN_MARCAP = 50_000_000_000   # 시총 500억 이상
@@ -57,7 +58,10 @@ def prepare(df):
     # 전날까지 60선 >= 120선, 오늘 60선 < 120선 -> 120선이 60선 위로 역전
     df['cross'] = (df['ma60'].shift(1) >= df['ma120'].shift(1)) & (df['ma60'] < df['ma120'])
     df['inv'] = df['ma60'] < df['ma120']
-    df['bull'] = df['Close'] > df['Open']
+    # 기준봉 후보: 양봉이면서 종가가 직전 (HIGH_BARS-1)봉의 모든 종가(음봉 포함)보다 높은 봉
+    bull = df['Close'] > df['Open']
+    prev_max = df['Close'].shift(1).rolling(HIGH_BARS - 1, min_periods=1).max()
+    df['cand'] = bull & (prev_max.isna() | (df['Close'] > prev_max))
     return df
 
 
@@ -72,13 +76,10 @@ def check_at(df, i, window_days=WINDOW_DAYS):
         return None                                       # 60일 지남 -> 그 구간 기준봉은 확정
     if not df['inv'].values[c:i].all():
         return None                                       # 중간에 정배열로 돌아섰으면 구간 끝
-    # 후보: 양봉이면서 종가가 역전일부터 전날까지 모든 봉(음봉 포함)의 종가보다 높은 봉
-    seg = df['Close'].values[c:i + 1]
-    run_prev = np.concatenate(([-np.inf], np.maximum.accumulate(seg)[:-1]))
-    cand = df['bull'].values[c:i + 1] & (seg > run_prev)
-    if not cand[-1]:
+    cand = df['cand'].values
+    if not cand[i]:
         return None
-    if cand[:-1].any():
+    if cand[c:i].any():
         return None                                       # 이 구간에서 이미 기준봉이 떴으면 처음 것이 고정
     row = df.iloc[i]
     prev_close = float(df['Close'].iloc[i - 1])
