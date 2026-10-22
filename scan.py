@@ -115,7 +115,7 @@ def reference_date():
     return df.index[-1].date()
 
 
-def get_universe():
+def get_universe(apply_amount=True):
     try:
         lst = fdr.StockListing('KRX')
         code_col = 'Code' if 'Code' in lst.columns else 'Symbol'
@@ -127,11 +127,12 @@ def get_universe():
             lst = lst[~lst['Dept'].astype(str).str.contains('관리|SPAC', na=False)]
         if 'Marcap' in lst.columns:
             lst = lst[lst['Marcap'] >= MIN_MARCAP]
-        if 'Amount' in lst.columns:
+        if apply_amount and 'Amount' in lst.columns:
             lst = lst[lst['Amount'] >= MIN_AMOUNT]
         uni = lst[['Code', 'Name', 'Market']].reset_index(drop=True)
         os.makedirs(os.path.dirname(UNIVERSE_CSV), exist_ok=True)
-        uni.to_csv(UNIVERSE_CSV, index=False)             # 다음 번 조회 실패 대비 캐시
+        if apply_amount:
+            uni.to_csv(UNIVERSE_CSV, index=False)             # 다음 번 조회 실패 대비 캐시
         return uni
     except Exception as e:                                # noqa: BLE001
         print(f'KRX 종목 목록 조회 실패: {e!r}')
@@ -202,6 +203,29 @@ def save_json(path, obj, indent=None):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(obj, f, ensure_ascii=False, indent=indent, allow_nan=False)
+
+
+def prune_superseded(history):
+    """같은 역배열 구간(code + cross_date)에는 가장 늦은 신호 하나만 남긴다.
+    -> (남은 기록, 정리된 기록). 구간이 같으면 기준봉은 하나라서, 앞선 신호는 새 신호에 밀려난다."""
+    best = {}
+    for h in history:
+        k = (h['code'], h['cross_date'])
+        if k not in best or h['signal_date'] > best[k]['signal_date']:
+            best[k] = h
+    keep = {id(v) for v in best.values()}
+    kept = [h for h in history if id(h) in keep]
+    dropped = [h for h in history if id(h) not in keep]
+    return kept, dropped
+
+
+def remove_charts(entries):
+    for h in entries:
+        name = h.get('chart')
+        if name:
+            path = os.path.join(DATA_DIR, name)
+            if os.path.isfile(path):
+                os.remove(path)
 
 
 def send_telegram(text):
@@ -287,6 +311,9 @@ def main():
         if (s['code'], s['signal_date']) not in known:
             history.append({**s, 'notified': False})
 
+    history, dropped = prune_superseded(history)       # 같은 구간의 앞선 신호는 새 신호에 밀려남
+    remove_charts(dropped)
+
     # 오늘 신호 중 아직 알리지 않은 것만 알림 (실패하면 다음 실행 때 다시 시도)
     pending = [h for h in history if not h.get('notified') and h['signal_date'] == asof.isoformat()]
     exit_code = 0
@@ -300,7 +327,7 @@ def main():
             exit_code = 1          # 설정은 있는데 전송이 실패한 경우만 실패로 표시
 
     history.sort(key=lambda h: (h['signal_date'], h['change_pct']), reverse=True)
-    save_json(HISTORY_JSON, history[:3000], indent=1)
+    save_json(HISTORY_JSON, history[:50000], indent=1)
     return exit_code
 
 
