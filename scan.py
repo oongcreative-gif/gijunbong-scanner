@@ -3,8 +3,8 @@
 규칙
 1. 60일선이 120일선 아래로 내려간 첫 날 = 역배열 시작일 (1일째)
 2. 시작일부터 60일(달력일) 동안, 역배열이 유지되는 구간에서
-3. 양봉(종가 > 시가) 중 몸통이 가장 긴 봉(시가 대비 %)이 기준봉
-4. 오늘 봉이 그 기준봉으로 갱신되면 신호. 60일이 지나면 그 구간의 기준봉은 확정(고정)
+3. 그 봉이 양봉(종가 > 시가)이고, 종가가 직전 60거래일(자기 포함) 양봉 종가 중 가장 높으면 기준봉 (크기·거래량은 안 봄)
+4. 한 역배열 구간에서는 처음 뜬 기준봉이 고정. 오늘 봉이 그 첫 기준봉이면 신호
 
 실행하면
 - docs/data/latest.json   오늘 신호
@@ -41,6 +41,7 @@ UNIVERSE_CSV = os.path.join(ROOT, 'data', 'universe.csv')
 KST = ZoneInfo('Asia/Seoul')
 MA_SHORT, MA_LONG = 60, 120
 WINDOW_DAYS = 60          # 역배열 시작일(=1일째)부터 60일째까지 (달력일)
+HIGH_BARS = 60            # 기준봉 종가 비교 기간 (거래일 봉 수, 자기 포함)
 LOOKBACK_DAYS = 420       # 달력일 기준 조회 기간
 CHART_BARS = 170          # 사이트 차트에 쓸 봉 수
 MIN_MARCAP = 50_000_000_000   # 시총 500억 이상
@@ -57,6 +58,11 @@ def prepare(df):
     # 전날까지 60선 >= 120선, 오늘 60선 < 120선 -> 120선이 60선 위로 역전
     df['cross'] = (df['ma60'].shift(1) >= df['ma120'].shift(1)) & (df['ma60'] < df['ma120'])
     df['inv'] = df['ma60'] < df['ma120']
+    # 기준봉 후보: 양봉이면서 종가가 직전 (HIGH_BARS-1)봉 양봉 종가보다 모두 높은 봉
+    bull = df['Close'] > df['Open']
+    bull_close = df['Close'].where(bull)
+    prev_max = bull_close.shift(1).rolling(HIGH_BARS - 1, min_periods=1).max()
+    df['cand'] = bull & (prev_max.isna() | (df['Close'] > prev_max))
     return df
 
 
@@ -71,13 +77,11 @@ def check_at(df, i, window_days=WINDOW_DAYS):
         return None                                       # 60일 지남 -> 그 구간 기준봉은 확정
     if not df['inv'].values[c:i].all():
         return None                                       # 중간에 정배열로 돌아섰으면 구간 끝
-    win = df.iloc[c:i + 1]
-    bull = win[win['Close'] > win['Open']]
-    if bull.empty:
+    cand = df['cand'].values
+    if not cand[i]:
         return None
-    body = (bull['Close'] - bull['Open']) / bull['Open']    # 몸통 길이(시가 대비 %) = 양봉의 크기
-    if body.idxmax() != df.index[i]:                      # 가장 긴 양봉이 기준봉, 동률이면 먼저 나온 봉
-        return None
+    if cand[c:i].any():
+        return None                                       # 이 구간에서 이미 기준봉이 떴으면 처음 것이 고정
     row = df.iloc[i]
     prev_close = float(df['Close'].iloc[i - 1])
     change = round((float(row['Close']) / prev_close - 1) * 100, 2) if prev_close else 0.0
