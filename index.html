@@ -62,9 +62,16 @@ h1{margin:0; font-size:22px; font-weight:750; letter-spacing:-.02em}
 .tip .d{color:var(--sub)}
 .tip .on{color:var(--mark); font-weight:650}
 .view{margin-top:6px; color:var(--sub); font-size:12.5px}
+.ch-tools{display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap}
+.seg{display:inline-flex; border:1px solid var(--rule); border-radius:4px; overflow:hidden}
+.seg button{padding:5px 12px; border:0; background:transparent; color:var(--sub); font:inherit; font-size:13px; cursor:pointer}
+.seg button + button{border-left:1px solid var(--rule)}
+.seg button[aria-pressed="true"]{background:var(--mark); color:#fff; font-weight:650}
+.seg button:focus-visible{outline:2px solid var(--mark); outline-offset:-2px}
+.ch-tools small{color:var(--sub); font-size:12.5px}
 .key{display:flex; gap:16px; flex-wrap:wrap; color:var(--sub); font-size:12.5px; margin-top:6px}
 .key i{display:inline-block; width:14px; height:3px; margin-right:6px; vertical-align:middle}
-.key .sw{width:14px; height:10px; background:var(--band); border:1px solid var(--mark)}
+.key .sw{display:inline-block; width:14px; height:10px; margin-right:6px; vertical-align:middle; border:1px solid var(--rule)}
 
 .log{margin:18px 0 40px; background:var(--panel); border:1px solid var(--rule)}
 .log-head{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid var(--rule)}
@@ -113,6 +120,14 @@ td small{display:block; color:var(--sub); font-size:12px}
     </div>
     <div class="chartbox">
       <div class="ch-head"><h2 id="chTitle">차트</h2><span class="ch-meta" id="chMeta"></span></div>
+      <div class="ch-tools">
+        <div class="seg" id="seg" role="group" aria-label="표시할 봉 수">
+          <button type="button" data-n="60" aria-pressed="true">60봉</button>
+          <button type="button" data-n="120" aria-pressed="false">120봉</button>
+          <button type="button" data-n="0" aria-pressed="false">전체</button>
+        </div>
+        <small>HTS처럼 60봉만 크게 보여줘요. 마우스 휠로 확대·축소, 끌어서 이동해요.</small>
+      </div>
       <div id="chartWrap">
         <div id="chart" role="img" aria-label="캔들 차트"></div>
         <div class="tip" id="tip">차트 위에 마우스를 올리면 날짜와 며칠째인지 보여요</div>
@@ -121,7 +136,8 @@ td small{display:block; color:var(--sub); font-size:12px}
       <div class="key">
         <span><i style="background:#f59e0b"></i>60일선</span>
         <span><i style="background:#8b5cf6"></i>120일선</span>
-        <span><span class="sw" style="display:inline-block;margin-right:6px;vertical-align:middle"></span>역배열 60일 구간</span>
+        <span><span class="sw" style="background:rgba(250,204,21,.35)"></span>정배열 (60선 위)</span>
+        <span><span class="sw" style="background:rgba(100,130,255,.22)"></span>역배열 60일 구간</span>
         <span><i style="background:#f08c00;height:0;border-top:2px dashed #f08c00"></i>역전일~전날 최고 종가</span>
       </div>
     </div>
@@ -159,10 +175,11 @@ td small{display:block; color:var(--sub); font-size:12px}
   let today = [], history = [], asof = null, activeKey = null;
   let chart = null, candle = null, vol = null, m60 = null, m120 = null, band = null;
   let cur = null, hiLine = null;   // 지금 보고 있는 차트 데이터와 기준선
+  let span = 60;                   // 화면에 보여줄 봉 수 (0 = 전체)
 
   const palette = () => dark()
-    ? {bg:'#141b24', text:'#8a96a8', grid:'#1f2833', up:'#ff6a70', down:'#6ea2ff', band:'rgba(255,166,43,0.13)', mark:'#ffa62b'}
-    : {bg:'#ffffff', text:'#667085', grid:'#eef0f4', up:'#e0383e', down:'#2b6cde', band:'rgba(240,140,0,0.12)', mark:'#f08c00'};
+    ? {bg:'#141b24', text:'#8a96a8', grid:'#1f2833', up:'#ff6a70', down:'#6ea2ff', band:'rgba(110,140,255,0.20)', yel:'rgba(250,204,21,0.16)', mark:'#ffa62b'}
+    : {bg:'#ffffff', text:'#667085', grid:'#eef0f4', up:'#e0383e', down:'#2b6cde', band:'rgba(100,130,255,0.16)', yel:'rgba(250,204,21,0.30)', mark:'#f08c00'};
 
   function ensureChart() {
     if (chart) return;
@@ -242,7 +259,13 @@ td small{display:block; color:var(--sub); font-size:12px}
     const line = (arr) => d.t.map((t, i) => arr[i] == null ? null : {time: t, value: arr[i]}).filter(Boolean);
     m60.setData(line(d.ma60));
     m120.setData(line(d.ma120));
-    band.setData(d.t.filter((t) => t >= d.cross_date && t <= d.window_end).map((t) => ({time: t, value: 1, color: p.band})));
+    // 배경: 정배열(60선이 120선 위)은 노란색, 역배열 60일 구간은 파란 기운 (HTS 차트와 같은 방식)
+    const bg = [];
+    d.t.forEach((t, i) => {
+      if (d.ma60[i] != null && d.ma120[i] != null && d.ma60[i] >= d.ma120[i]) bg.push({time: t, value: 1, color: p.yel});
+      else if (t >= d.cross_date && t <= d.window_end) bg.push({time: t, value: 1, color: p.band});
+    });
+    band.setData(bg);
     const marks = [];
     if (d.cross_date >= d.t[0]) marks.push({time: d.cross_date, position: 'aboveBar', color: p.down, shape: 'arrowDown', text: '역전'});
     marks.push({time: d.signal_date, position: 'belowBar', color: p.up, shape: 'arrowUp', text: '기준봉'});
@@ -258,7 +281,17 @@ td small{display:block; color:var(--sub); font-size:12px}
     }
     marks.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
     candle.setMarkers(marks);
-    chart.timeScale().fitContent();
+    applyRange();
+  }
+
+  // 기준봉이 오른쪽에 오도록 span봉만 크게 보여줌 (오늘 신호는 맨 오른쪽 = 오늘)
+  function applyRange() {
+    if (!chart || !cur) return;
+    const n = cur.t.length;
+    if (!span || span >= n) { chart.timeScale().fitContent(); return; }
+    const si = Math.max(0, cur.t.indexOf(cur.signal_date));
+    const e = Math.min(n - 1, si + 8);
+    chart.timeScale().setVisibleLogicalRange({from: e - span + 0.5, to: e + 2.5});
   }
 
   function select(key, s) {
@@ -306,7 +339,16 @@ td small{display:block; color:var(--sub); font-size:12px}
     }));
   }
 
+  function wireSeg() {
+    document.querySelectorAll('#seg button').forEach((b) => b.addEventListener('click', () => {
+      span = +b.dataset.n;
+      document.querySelectorAll('#seg button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      applyRange();
+    }));
+  }
+
   async function init() {
+    wireSeg();
     let latest = {signals: [], asof: null};
     try { latest = await getJSON('data/latest.json'); } catch (e) { /* 아래 안내 문구로 처리 */ }
     try { history = await getJSON('data/history.json'); } catch (e) { history = []; }
