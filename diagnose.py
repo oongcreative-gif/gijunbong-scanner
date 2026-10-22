@@ -3,7 +3,7 @@
 CODES 에 종목명 또는 6자리 코드를 쉼표로 넣으면, 각 종목이
 - 스캔 대상에 들어가는지(시총/거래대금)
 - 최근 역전일과 그 이후 봉별 종가·양봉 여부
-- 어떤 봉이 '역전일 이후 종가 최고 양봉'(A)인지, '직전 60봉 종가 최고 양봉'(B)인지
+- 어떤 봉이 '역전일 이후 종가 최고 양봉'(A)인지, '직전 60봉 종가 최고 양봉'(B, 현재 규칙)인지
 - 현재 규칙으로 어떤 날 신호가 나는지
 를 로그로 보여준다. 파일은 바꾸지 않는다.
 """
@@ -64,17 +64,18 @@ def show(code, lst):
     for k, (d, r) in enumerate(seg.iterrows()):
         i = c + k
         prev_all = closes[c:i]
-        a = bool(r['bull']) and (len(prev_all) == 0 or r['Close'] > prev_all.max())
+        bull = bool(r['Close'] > r['Open'])
+        a = bull and (len(prev_all) == 0 or r['Close'] > prev_all.max())
         lo = max(0, i - 59)
         prev60 = closes[lo:i]
-        b = bool(r['bull']) and (len(prev60) == 0 or r['Close'] > prev60.max())
+        b = bull and (len(prev60) == 0 or r['Close'] > prev60.max())
         if a and first_a is None:
             first_a = d
         chg = (r['Close'] / closes[i - 1] - 1) * 100 if i > 0 else 0
         inwin = d <= end
         mark = ' ◀ A 첫 후보' if (a and first_a == d) else ''
         if k < 70:
-            print(f'{d.date()} {r["Open"]:>8,.0f} {r["Close"]:>8,.0f} {chg:>+6.1f}%  {"양" if r["bull"] else "음"}   '
+            print(f'{d.date()} {r["Open"]:>8,.0f} {r["Close"]:>8,.0f} {chg:>+6.1f}%  {"양" if bull else "음"}   '
                   f'{"O" if r["inv"] else "정배열"}      {"A" if a else "-"}               {"B" if b else "-"}             '
                   f'{"안" if inwin else "밖"}{mark}')
     print('--- 현재 규칙(scan.py)으로 신호가 나는 날 ---')
