@@ -3,7 +3,7 @@
 규칙
 1. 60일선이 120일선 아래로 내려간 첫 날 = 역배열 시작일 (1일째)
 2. 시작일부터 60일(달력일) 동안, 역배열이 유지되는 구간에서
-3. 양봉(종가 > 시가) 중 종가가 가장 높은 봉이 기준봉
+3. 양봉(종가 > 시가) 중 몸통이 가장 긴 봉(시가 대비 %)이 기준봉
 4. 오늘 봉이 그 기준봉으로 갱신되면 신호. 60일이 지나면 그 구간의 기준봉은 확정(고정)
 
 실행하면
@@ -75,7 +75,8 @@ def check_at(df, i, window_days=WINDOW_DAYS):
     bull = win[win['Close'] > win['Open']]
     if bull.empty:
         return None
-    if bull['Close'].idxmax() != df.index[i]:             # 동률이면 먼저 나온 봉이 기준봉
+    body = (bull['Close'] - bull['Open']) / bull['Open']    # 몸통 길이(시가 대비 %) = 양봉의 크기
+    if body.idxmax() != df.index[i]:                      # 가장 긴 양봉이 기준봉, 동률이면 먼저 나온 봉
         return None
     row = df.iloc[i]
     prev_close = float(df['Close'].iloc[i - 1])
