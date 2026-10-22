@@ -2,7 +2,7 @@
 
 BACKFILL_FROM ~ BACKFILL_TO 사이에 신호가 난 봉을 찾아서 history.json 에 넣는다.
 - 같은 역배열 구간(역전일이 같은 것)에서는 마지막 신호, 즉 그 기간의 최종 기준봉만 남긴다.
-- 거래대금 10억 이상 조건은 '신호가 난 그날'의 종가x거래량으로 따진다.
+- 거래대금 조건은 따지지 않는다 (시총 500억 이상 종목만 대상).
 - 종목 목록은 오늘 기준(시총 500억 이상, 스팩/ETF/우선주/관리종목 제외)이라
   그 사이 상장폐지된 종목은 빠진다.
 - 이미 알림이 지나간 과거 기록이라 notified=True 로 저장한다 (텔레그램은 보내지 않음).
@@ -35,9 +35,6 @@ def stock_history(code, start, d_from, d_to):
                 sig = scan.check_at(df, i)
                 if not sig:
                     continue
-                row = df.iloc[i]
-                if float(row['Close']) * float(row['Volume']) < scan.MIN_AMOUNT:
-                    continue                                   # 그날 거래대금 부족 -> 실제로도 알림 안 갔을 신호
                 fired.append(sig)
             if not fired:
                 return 'none', []
