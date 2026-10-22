@@ -12,6 +12,6 @@
   "name": "삼성E&A",
   "market": "KOSPI",
   "chart": "charts/028050_2026-10-22.json",
-  "notified": false
+  "notified": true
  }
 ]
