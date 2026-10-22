@@ -108,7 +108,7 @@ td small{display:block; color:var(--sub); font-size:12px}
       <h1>기준봉 스캐너</h1>
       <div class="stamp" id="stamp">불러오는 중</div>
     </div>
-    <p class="rule-line">120일선이 60일선 위로 역전한 날부터 60일 동안, 양봉이면서 종가가 역전일부터 모든 봉(음봉 포함)보다 높은 첫 봉</p>
+    <p class="rule-line">120일선이 60일선 위로 역전한 날부터 60일 동안, 양봉이면서 종가가 직전 60거래일 모든 봉(음봉 포함)보다 높은 첫 봉</p>
   </div>
 </header>
 
@@ -138,7 +138,7 @@ td small{display:block; color:var(--sub); font-size:12px}
         <span><i style="background:#8b5cf6"></i>120일선</span>
         <span><span class="sw" style="background:rgba(250,204,21,.35)"></span>정배열 (60선 위)</span>
         <span><span class="sw" style="background:rgba(100,130,255,.22)"></span>역배열 60일 구간</span>
-        <span><i style="background:#f08c00;height:0;border-top:2px dashed #f08c00"></i>역전일~전날 최고 종가</span>
+        <span><i style="background:#f08c00;height:0;border-top:2px dashed #f08c00"></i>직전 60봉 최고 종가</span>
       </div>
     </div>
   </section>
@@ -269,15 +269,15 @@ td small{display:block; color:var(--sub); font-size:12px}
     const marks = [];
     if (d.cross_date >= d.t[0]) marks.push({time: d.cross_date, position: 'aboveBar', color: p.down, shape: 'arrowDown', text: '역전'});
     marks.push({time: d.signal_date, position: 'belowBar', color: p.up, shape: 'arrowUp', text: '기준봉'});
-    // 역전일부터 기준봉 전날까지 최고 종가(음봉 포함) = 기준봉 판정에 쓴 비교 기준
+    // 기준봉 직전 59봉(음봉 포함) 최고 종가 = 기준봉 판정에 쓴 비교 기준
     const si = d.t.indexOf(d.signal_date);
     if (hiLine) { candle.removePriceLine(hiLine); hiLine = null; }
     if (si >= 0) {
-      let from = d.t.findIndex((t) => t >= d.cross_date);
-      if (from < 0) from = 0;
+      const from = Math.max(0, si - 59);
+      if (from > 0) marks.push({time: d.t[from], position: 'belowBar', color: p.text, shape: 'circle', text: '60봉 전'});
       let mx = null;
       for (let j = from; j < si; j++) if (mx == null || d.c[j] > mx) mx = d.c[j];
-      if (mx != null) hiLine = candle.createPriceLine({price: mx, color: p.mark, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '전날까지 최고'});
+      if (mx != null) hiLine = candle.createPriceLine({price: mx, color: p.mark, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '직전 60봉 최고'});
     }
     marks.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
     candle.setMarkers(marks);
