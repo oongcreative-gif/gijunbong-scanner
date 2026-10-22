@@ -3,7 +3,7 @@
 규칙
 1. 60일선이 120일선 아래로 내려간 첫 날 = 역배열 시작일 (1일째)
 2. 시작일부터 60일(달력일) 동안, 역배열이 유지되는 구간에서
-3. 그 봉이 양봉(종가 > 시가)이고, 종가가 직전 60거래일(자기 포함) 양봉 종가 중 가장 높으면 기준봉 (크기·거래량은 안 봄)
+3. 그 봉이 양봉(종가 > 시가)이고, 종가가 직전 60거래일(자기 포함) 모든 봉(음봉 포함)의 종가보다 높으면 기준봉 (크기·거래량은 안 봄)
 4. 한 역배열 구간에서는 처음 뜬 기준봉이 고정. 오늘 봉이 그 첫 기준봉이면 신호
 
 실행하면
@@ -58,10 +58,9 @@ def prepare(df):
     # 전날까지 60선 >= 120선, 오늘 60선 < 120선 -> 120선이 60선 위로 역전
     df['cross'] = (df['ma60'].shift(1) >= df['ma120'].shift(1)) & (df['ma60'] < df['ma120'])
     df['inv'] = df['ma60'] < df['ma120']
-    # 기준봉 후보: 양봉이면서 종가가 직전 (HIGH_BARS-1)봉 양봉 종가보다 모두 높은 봉
+    # 기준봉 후보: 양봉이면서 종가가 직전 (HIGH_BARS-1)봉의 모든 종가(음봉 포함)보다 높은 봉
     bull = df['Close'] > df['Open']
-    bull_close = df['Close'].where(bull)
-    prev_max = bull_close.shift(1).rolling(HIGH_BARS - 1, min_periods=1).max()
+    prev_max = df['Close'].shift(1).rolling(HIGH_BARS - 1, min_periods=1).max()
     df['cand'] = bull & (prev_max.isna() | (df['Close'] > prev_max))
     return df
 
