@@ -85,6 +85,10 @@ def main():
         return 1
 
     history = scan.load_json(scan.HISTORY_JSON, [])
+    # 이 기간의 기존 기록은 지우고 새 규칙으로 다시 채운다 (규칙이 바뀌었을 때 옛 결과가 남지 않게)
+    old = [h for h in history if d_from.isoformat() <= h['signal_date'] <= d_to.isoformat()]
+    history = [h for h in history if h not in old]
+    scan.remove_charts(old)
     known = {(h['code'], h['signal_date']) for h in history}
     payloads = []
     for sig, chart in results:
