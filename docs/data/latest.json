@@ -1,21 +1,6 @@
 {
- "updated_at": "2026-10-22T21:34:59+09:00",
- "asof": "2026-10-22",
- "universe_size": 682,
- "signals": [
-  {
-   "signal_date": "2026-10-22",
-   "cross_date": "2026-09-02",
-   "window_end": "2026-10-31",
-   "day_no": 51,
-   "bar_no": 33,
-   "close": 56100.0,
-   "change_pct": 17.36,
-   "volume": 12321933,
-   "code": "028050",
-   "name": "삼성E&A",
-   "market": "KOSPI",
-   "chart": "charts/028050_2026-10-22.json"
-  }
- ]
+ "updated_at": "2026-10-23T19:04:50+09:00",
+ "asof": "2026-10-23",
+ "universe_size": 693,
+ "signals": []
 }
