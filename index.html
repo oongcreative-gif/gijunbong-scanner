@@ -31,36 +31,14 @@ h1{margin:0; font-size:22px; font-weight:750; letter-spacing:-.02em}
 .stamp{margin-left:auto; color:var(--sub); font-size:13px; text-align:right}
 .stamp b{color:var(--ink); font-weight:650}
 
-.stage{display:grid; grid-template-columns:320px minmax(0,1fr); gap:0; background:var(--panel); border:1px solid var(--rule)}
-.index{border-right:1px solid var(--rule); min-width:0}
-.index h2, .chartbox h2, .log h2{margin:0; font-size:14px; font-weight:700}
-.index-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--rule)}
-.count{color:var(--sub); font-size:13px}
-.pick{
-  display:grid; grid-template-columns:1fr auto; gap:2px 12px; width:100%; text-align:left;
-  padding:12px 16px 12px 13px; border:0; border-left:3px solid transparent; border-bottom:1px solid var(--rule);
-  background:transparent; color:inherit; font:inherit; cursor:pointer;
-}
-.pick:hover{background:var(--hover)}
-.pick[aria-current="true"]{border-left-color:var(--mark); background:var(--hover)}
-.pick:focus-visible{outline:2px solid var(--mark); outline-offset:-2px}
-.pick .nm{font-weight:650}
-.pick small{color:var(--sub); font-size:12.5px}
-.pick .px{text-align:right; font-weight:600}
-.empty{padding:18px 16px; color:var(--sub); font-size:14px; margin:0}
-
+.stage{background:var(--panel); border:1px solid var(--rule)}
+.chartbox h2, .log h2{margin:0; font-size:14px; font-weight:700}
 .chartbox{min-width:0; padding:14px 16px 10px}
 .ch-head{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
 .ch-head h2{font-size:18px; letter-spacing:-.01em}
 .ch-meta{color:var(--sub); font-size:13px}
 #chartWrap{position:relative; margin-top:10px}
 #chart{height:420px}
-.tip{position:absolute; left:10px; top:8px; z-index:5; pointer-events:none; max-width:calc(100% - 90px);
-  padding:7px 10px; border:1px solid var(--rule); border-radius:4px; background:var(--panel); opacity:.95;
-  font-size:12.5px; line-height:1.55; color:var(--ink)}
-.tip b{font-weight:650}
-.tip .d{color:var(--sub)}
-.tip .on{color:var(--mark); font-weight:650}
 .view{margin-top:6px; color:var(--sub); font-size:12.5px}
 .ch-tools{display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap}
 .seg{display:inline-flex; border:1px solid var(--rule); border-radius:4px; overflow:hidden}
@@ -94,8 +72,6 @@ td small{display:block; color:var(--sub); font-size:12px}
 .tag.live{border-color:var(--mark); color:var(--mark)}
 
 @media (max-width:860px){
-  .stage{grid-template-columns:1fr}
-  .index{border-right:0; border-bottom:1px solid var(--rule)}
   #chart{height:340px}
   .stamp{margin-left:0; text-align:left; width:100%}
 }
@@ -113,11 +89,7 @@ td small{display:block; color:var(--sub); font-size:12px}
 </header>
 
 <main class="wrap">
-  <section class="stage" aria-label="오늘의 기준봉과 차트">
-    <div class="index">
-      <div class="index-head"><h2>오늘 잡힌 종목</h2><span class="count" id="todayCount"></span></div>
-      <div id="picks"></div>
-    </div>
+  <section class="stage" aria-label="기준봉 차트">
     <div class="chartbox">
       <div class="ch-head"><h2 id="chTitle">차트</h2><span class="ch-meta" id="chMeta"></span></div>
       <div class="ch-tools">
@@ -130,7 +102,6 @@ td small{display:block; color:var(--sub); font-size:12px}
       </div>
       <div id="chartWrap">
         <div id="chart" role="img" aria-label="캔들 차트"></div>
-        <div class="tip" id="tip">차트 위에 마우스를 올리면 날짜와 며칠째인지 보여요</div>
       </div>
       <div class="view" id="view"></div>
       <div class="key">
@@ -138,7 +109,6 @@ td small{display:block; color:var(--sub); font-size:12px}
         <span><i style="background:#8b5cf6"></i>120일선</span>
         <span><span class="sw" style="background:rgba(250,204,21,.35)"></span>정배열 (60선 위)</span>
         <span><span class="sw" style="background:rgba(100,130,255,.22)"></span>역배열 60일 구간</span>
-        <span><i style="background:#f08c00;height:0;border-top:2px dashed #f08c00"></i>직전 60봉 최고 종가</span>
       </div>
     </div>
   </section>
@@ -174,7 +144,7 @@ td small{display:block; color:var(--sub); font-size:12px}
 
   let today = [], history = [], asof = null, activeKey = null;
   let chart = null, candle = null, vol = null, m60 = null, m120 = null, band = null;
-  let cur = null, hiLine = null;   // 지금 보고 있는 차트 데이터와 기준선
+  let cur = null;                  // 지금 보고 있는 차트 데이터
   let span = 60;                   // 화면에 보여줄 봉 수 (0 = 전체)
 
   const palette = () => dark()
@@ -204,12 +174,9 @@ td small{display:block; color:var(--sub); font-size:12px}
     m60 = chart.addLineSeries({color: '#f59e0b', lineWidth: 2, priceLineVisible: false, lastValueVisible: false});
     m120 = chart.addLineSeries({color: '#8b5cf6', lineWidth: 2, priceLineVisible: false, lastValueVisible: false});
     new ResizeObserver(() => chart.applyOptions({width: el.clientWidth, height: el.clientHeight})).observe(el);
-    chart.subscribeCrosshairMove(onMove);
     chart.timeScale().subscribeVisibleLogicalRangeChange(onRange);
   }
 
-  const keyOf = (t) => (t && typeof t === 'object')
-    ? `${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}` : t;
   const dayDiff = (a, b) => Math.round((Date.parse(a) - Date.parse(b)) / 86400000);
 
   function onRange(r) {
@@ -220,28 +187,6 @@ td small{display:block; color:var(--sub); font-size:12px}
     if (to < from) { v.textContent = ''; return; }
     const days = dayDiff(cur.t[to], cur.t[from]) + 1;
     v.textContent = `화면에 ${to - from + 1}봉 (${cur.t[from]} ~ ${cur.t[to]}, 달력 ${days}일)`;
-  }
-
-  function onMove(param) {
-    const tip = $('#tip');
-    if (!cur) return;
-    const k = keyOf(param && param.time);
-    const i = k ? cur.t.indexOf(k) : -1;
-    if (i < 0) return;
-    const o = cur.o[i], h = cur.h[i], l = cur.l[i], c = cur.c[i];
-    const prev = i > 0 ? cur.c[i - 1] : null;
-    const chg = prev ? ((c / prev - 1) * 100) : null;
-    const parts = [`<b>${cur.t[i]}</b> <span class="d">시 ${nf.format(o)} 고 ${nf.format(h)} 저 ${nf.format(l)} 종 ${nf.format(c)}${chg == null ? '' : ' (' + pct(chg) + ')'}</span>`];
-    if (k >= cur.cross_date) {
-      const dn = dayDiff(k, cur.cross_date) + 1;
-      const bn = cur.t.filter((t) => t >= cur.cross_date && t <= k).length;
-      const inWin = k <= cur.window_end;
-      parts.push(`역전 후 <span class="${inWin ? 'on' : ''}">${dn}일째</span> (${bn}번째 봉)${inWin ? '' : ' · 60일 지남'}`);
-    } else {
-      parts.push(`<span class="d">역전 전 (${dayDiff(cur.cross_date, k)}일 전에 역전)</span>`);
-    }
-    if (k === cur.signal_date) parts.push('<span class="on">기준봉</span>');
-    tip.innerHTML = parts.join('<br>');
   }
 
   async function showChart(s) {
@@ -269,16 +214,6 @@ td small{display:block; color:var(--sub); font-size:12px}
     const marks = [];
     if (d.cross_date >= d.t[0]) marks.push({time: d.cross_date, position: 'aboveBar', color: p.down, shape: 'arrowDown', text: '역전'});
     marks.push({time: d.signal_date, position: 'belowBar', color: p.up, shape: 'arrowUp', text: '기준봉'});
-    // 기준봉 직전 59봉(음봉 포함) 최고 종가 = 기준봉 판정에 쓴 비교 기준
-    const si = d.t.indexOf(d.signal_date);
-    if (hiLine) { candle.removePriceLine(hiLine); hiLine = null; }
-    if (si >= 0) {
-      const from = Math.max(0, si - 59);
-      if (from > 0) marks.push({time: d.t[from], position: 'belowBar', color: p.text, shape: 'circle', text: '60봉 전'});
-      let mx = null;
-      for (let j = from; j < si; j++) if (mx == null || d.c[j] > mx) mx = d.c[j];
-      if (mx != null) hiLine = candle.createPriceLine({price: mx, color: p.mark, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '직전 60봉 최고'});
-    }
     marks.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
     candle.setMarkers(marks);
     applyRange();
@@ -296,23 +231,7 @@ td small{display:block; color:var(--sub); font-size:12px}
 
   function select(key, s) {
     activeKey = key;
-    document.querySelectorAll('.pick').forEach((b) => b.setAttribute('aria-current', String(b.dataset.key === key)));
     showChart(s);
-  }
-
-  function renderToday() {
-    const box = $('#picks');
-    $('#todayCount').textContent = today.length ? `${today.length}종목` : '';
-    if (!asof) { box.innerHTML = '<p class="empty">아직 첫 스캔 전이에요. GitHub의 Actions 탭에서 scan을 한 번 실행해 주세요.</p>'; return; }
-    if (!today.length) { box.innerHTML = `<p class="empty">${esc(asof)} 장 마감 기준으로 새 기준봉이 없어요.</p>`; return; }
-    box.innerHTML = today.map((s, i) => `
-      <button class="pick" data-i="${i}" data-key="t:${esc(s.code)}" aria-current="false">
-        <span class="nm">${esc(s.name)}</span>
-        <span class="px">${nf.format(s.close)}</span>
-        <small>${esc(s.code)} · ${esc(s.market)}</small>
-        <span class="px ${s.change_pct >= 0 ? 'up' : 'down'}">${pct(s.change_pct)}</span>
-      </button>`).join('');
-    box.querySelectorAll('.pick').forEach((b) => b.addEventListener('click', () => select(b.dataset.key, today[+b.dataset.i])));
   }
 
   function renderLog() {
@@ -357,7 +276,6 @@ td small{display:block; color:var(--sub); font-size:12px}
     $('#stamp').innerHTML = asof
       ? `<b>${esc(asof)}</b> 장 마감 기준 · 스캔 ${nf.format(latest.universe_size || 0)}종목 · 갱신 ${esc((latest.updated_at || '').slice(0, 16).replace('T', ' '))}`
       : '스캔 기록 없음';
-    renderToday();
     renderLog();
     $('#q').addEventListener('input', renderLog);
     if (today.length) select('t:' + today[0].code, today[0]);
