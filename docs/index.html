@@ -225,8 +225,9 @@ td small{display:block; color:var(--sub); font-size:12px}
     const n = cur.t.length;
     if (!span || span >= n) { chart.timeScale().fitContent(); return; }
     const si = Math.max(0, cur.t.indexOf(cur.signal_date));
-    const e = Math.min(n - 1, si + 8);
-    chart.timeScale().setVisibleLogicalRange({from: e - span + 0.5, to: e + 2.5});
+    const last = Math.min(n - 1, si + 10);          // 오른쪽 끝 봉 (기준봉 뒤로 10봉까지)
+    const first = Math.max(0, last - span + 1);     // 딱 span봉이 보이게
+    chart.timeScale().setVisibleLogicalRange({from: first - 0.5, to: last + 0.5});
   }
 
   function select(key, s) {
