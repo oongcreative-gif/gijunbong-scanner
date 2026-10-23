@@ -52,7 +52,11 @@ def get_universe():
         lst = lst[~lst['Name'].str.contains(r'우$|우B$|우\(전환\)$', regex=True, na=False)]
         if 'Dept' in lst.columns:
             lst = lst[~lst['Dept'].astype(str).str.contains('관리|SPAC', na=False)]
+        print(f"KRX 목록 {len(lst)}종목, 시총 값 있는 종목 {int(lst['Marcap'].notna().sum())}개, "
+              f"시총 최대 {lst['Marcap'].max()}")
         lst = lst[lst['Marcap'] >= MIN_MARCAP].sort_values('Marcap', ascending=False)
+        if len(lst) == 0:
+            raise RuntimeError('시총 2조 이상 종목이 0개입니다 (장중에는 시총 값이 비어 있을 수 있음)')
         uni = lst[['Code', 'Name', 'Market', 'Marcap']].reset_index(drop=True)
         uni['Code'] = uni['Code'].astype(str).str.zfill(6)
         os.makedirs(os.path.dirname(UNIVERSE_CSV), exist_ok=True)
@@ -61,8 +65,10 @@ def get_universe():
     except Exception as e:                                  # noqa: BLE001
         print(f'KRX 종목 목록 조회 실패: {e!r}')
         if os.path.exists(UNIVERSE_CSV):
-            print('-> 저장해 둔 data/s_universe.csv 를 대신 사용합니다')
-            return pd.read_csv(UNIVERSE_CSV, dtype={'Code': str})
+            cached = pd.read_csv(UNIVERSE_CSV, dtype={'Code': str})
+            if len(cached):
+                print('-> 저장해 둔 data/s_universe.csv 를 대신 사용합니다')
+                return cached
         raise
 
 
