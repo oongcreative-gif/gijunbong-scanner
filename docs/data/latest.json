@@ -1,6 +1,21 @@
 {
- "updated_at": "2026-11-12T19:29:54+09:00",
- "asof": "2026-11-12",
- "universe_size": 625,
- "signals": []
+ "updated_at": "2026-11-13T19:28:30+09:00",
+ "asof": "2026-11-13",
+ "universe_size": 648,
+ "signals": [
+  {
+   "signal_date": "2026-11-13",
+   "cross_date": "2026-09-23",
+   "window_end": "2026-11-21",
+   "day_no": 52,
+   "bar_no": 34,
+   "close": 59500.0,
+   "change_pct": 1.88,
+   "volume": 125535,
+   "code": "192080",
+   "name": "더블유게임즈",
+   "market": "KOSPI",
+   "chart": "charts/192080_2026-11-13.json"
+  }
+ ]
 }
